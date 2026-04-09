@@ -2,7 +2,11 @@ const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
 });
 
 // 🟡 usuarios haciendo pedido
@@ -11,7 +15,7 @@ let clientesPedido = new Map();
 // 🔴 usuarios en modo humano (con tiempo)
 let clientesAtendidos = new Map();
 
-// ⏱️ tiempo de bloqueo (1 hora)
+// ⏱️ 1 hora
 const TIEMPO_BLOQUEO = 60 * 60 * 1000;
 
 // QR
@@ -40,18 +44,18 @@ client.on('message', async message => {
         const usuario = message.from;
         const ahora = Date.now();
 
-        // 🔴 SI ESTÁ EN MODO HUMANO
+        // 🔴 modo humano activo
         if (clientesAtendidos.has(usuario)) {
             const tiempoGuardado = clientesAtendidos.get(usuario);
 
             if (ahora - tiempoGuardado < TIEMPO_BLOQUEO) {
-                return; // bot apagado
+                return;
             } else {
-                clientesAtendidos.delete(usuario); // reactivar bot
+                clientesAtendidos.delete(usuario);
             }
         }
 
-        // 🟡 SI ESTÁ HACIENDO PEDIDO
+        // 🟡 proceso de pedido
         if (clientesPedido.has(usuario)) {
             const pedido = message.body;
 
@@ -65,13 +69,13 @@ En breve te confirmamos 🍔`);
 
             clientesPedido.delete(usuario);
 
-            // 🔥 activar modo humano
+            // activar modo humano
             clientesAtendidos.set(usuario, ahora);
 
             return;
         }
 
-        // 🟢 MENÚ
+        // 🟢 menú
         if (texto.includes('hola') || texto.includes('menu')) {
             await message.reply(`🍔 ¡Gracias por comunicarte con Maravilla's Burguer!
 
@@ -83,7 +87,7 @@ En breve te confirmamos 🍔`);
 4️⃣ Ayuda / Hablar con alguien`);
         }
 
-        // 🖼️ MENÚ CON IMÁGENES
+        // 🖼️ menú imágenes
         else if (texto === '1') {
             try {
                 const menu1 = MessageMedia.fromFilePath('./imagenes/m1.jpeg');
@@ -100,7 +104,7 @@ En breve te confirmamos 🍔`);
             }
         }
 
-        // 📍 UBICACIÓN
+        // 📍 ubicación
         else if (texto === '2') {
             await message.reply(`📍 Estamos ubicados en:
 
@@ -109,7 +113,7 @@ https://maps.app.goo.gl/56CtDFmwSUEE7vfv5
 Abrimos de 6pm a 11pm 🍔`);
         }
 
-        // 📝 ACTIVAR PEDIDO
+        // 📝 activar pedido
         else if (texto === '3') {
             clientesPedido.set(usuario, true);
 
@@ -119,7 +123,7 @@ Ejemplo:
 2 hamburguesas dobles y 1 orden de papas 🍟`);
         }
 
-        // 🙋‍♂️ MODO HUMANO MANUAL
+        // 🙋‍♂️ humano manual
         else if (texto === '4' || texto.includes('ayuda')) {
             await message.reply(`🙋‍♂️ En un momento te atiende una persona.
 
@@ -128,7 +132,7 @@ Gracias por tu paciencia 🍔`);
             clientesAtendidos.set(usuario, ahora);
         }
 
-        // 🤖 NO ENTENDIÓ
+        // 🤖 fallback
         else {
             await message.reply(`🤖 No entendí tu mensaje.
 
